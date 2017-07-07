@@ -1,0 +1,63 @@
+---
+# tasks file for neo4j
+
+# https://neo4j.com/download/other-releases/
+# ﻿http://127.0.0.1:7474
+
+- file: path=/usr/local/neo4j state=absent
+  when: neo4j_uninstall_previous == true
+
+- get_url: url=https://neo4j.com/artifact.php?name=neo4j-community-{{ neo4j_version }}-unix.tar.gz mode=0644
+  args:
+    dest: /tmp/neo4j-community-{{ neo4j_version }}-unix.tar.gz
+
+- copy: src=neo4j-community-{{ neo4j_version }}-unix.tar.gz.sha256 dest=/tmp/neo4j-community-{{ neo4j_version }}-unix.tar.gz.sha256
+  when: neo4j_checksum == True
+  args:
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Checksum sha256
+  shell: sha256sum neo4j-community-{{ neo4j_version }}-unix.tar.gz.sha256 -c
+  when: neo4j_checksum == True
+  args:
+    chdir: /tmp
+    creates: "usr/local/neo4j/bin"
+
+- unarchive: src=/tmp/neo4j-community-{{ neo4j_version }}-unix.tar.gz dest=/usr/local
+  args:
+    copy: no
+    creates: "/usr/local/neo4j/bin"
+    group: "{{ neo4j_group }}"
+
+- command: mv /usr/local/neo4j-community-{{ neo4j_version }} /usr/local/neo4j
+  args:
+    creates: "/usr/local/neo4j/bin"
+
+- name: Start neo4j
+  shell: /usr/local/neo4j/bin/neo4j start
+
+- name: Wait 10s for neo4j to start
+  pause:
+    seconds: 10
+
+- apt: name=curl
+
+- name: Change default password
+  shell: "curl -H \"Content-Type: application/json\" -X POST -d '{\"password\":\"{{ neo4j_password }}\"}' -u neo4j:neo4j http://localhost:7474/user/neo4j/password"
+
+- name: Stop neo4j
+  shell: /usr/local/neo4j/bin/neo4j stop
+
+- name: Create configuration
+  template: src="neo4j.conf.j2" dest="/usr/local/neo4j/conf/neo4j.conf" owner=root group=root mode=0644
+
+- name: Check if supervisor is installed
+  stat: path="/etc/supervisor/conf.d"
+  register: neo4j_supervisor_conf
+
+# ﻿sudo supervisorctl
+- name: Create supervisor configuration
+  template: src="neo4j_supervisor.conf.j2" dest="/etc/supervisor/conf.d/neo4j_supervisor.conf" owner=root group=root mode=0644
+  when: neo4j_supervisor_conf.stat.exists == true

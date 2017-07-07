@@ -1,0 +1,11 @@
+---
+# defaults file for neo4j
+
+neo4j_version: 3.2.2
+neo4j_uninstall_previous: false
+neo4j_group: root
+neo4j_checksum: true
+neo4j_password: neo4j_newpassword
+neo4j_default_listen_address: 127.0.0.1
+neo4j_http_listen_address: 7474
+neo4j_https_listen_address: 7473
